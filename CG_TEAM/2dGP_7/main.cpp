@@ -14,8 +14,8 @@ GLuint CirclePosVbo2;
 GLuint CircleNomalVbo2;
 class obs {
 public:
-    GLfloat x{}, y{}, z{-25.0f};
-    GLfloat x_scale{2.0f}, y_scale{0.01f}, z_scale{50.0f};
+    GLfloat x{}, y{}, z{-45.0f};
+    GLfloat x_scale{2.0f}, y_scale{0.0001f}, z_scale{50.0f};
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
 };
@@ -33,7 +33,7 @@ public:
 
     float light_x = 0;
     float light_y = 8.0f;
-    float light_z = 5;
+    float light_z = 6.0f;
 
     float rotate_cube = 0;
     float cameraRotation = 0;
@@ -47,8 +47,8 @@ public:
     float camera_z = 5.0f;
 };
 
-obs obstacle;
-obss obstacle2;
+obs wall;
+obss main_character;
 
 GLfloat Color[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -126,7 +126,7 @@ void drawScene()
     int projLoc = glGetUniformLocation(shaderProgramID, "projection"); //--- 버텍스 세이더에서 투영 변환 행렬 변수값을 받아온다.
 
     glm::vec3 cameraPos = glm::vec3(light.camera_x, light.camera_y, light.camera_z); //--- 카메라 위치
-    glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, -150.0f); //--- 카메라 바라보는 방향
+    glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, -200.0f); //--- 카메라 바라보는 방향
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
     glm::mat4 vTransform(1.0f);
@@ -135,7 +135,7 @@ void drawScene()
 
     vTransform = glm::rotate(vTransform, glm::radians(light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
 
-    pTransform = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f); //--- 투영 공간 설정: fovy, aspect, near, far
+    pTransform = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 200.0f); //--- 투영 공간 설정: fovy, aspect, near, far
 
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &vTransform[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &pTransform[0][0]);
@@ -148,23 +148,49 @@ void drawScene()
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
-        if (i == 1)
-        {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 2.0f, 0.0f)); // 이동
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+        if (light.cameraRotation == 180) {
+            if (i == 0) {
+
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 4.0f, 0)); // 이동
+            }
+            else if (i == 1)
+            {
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(-2.0f, 2.0f, 0)); // 이동
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
+            else if (i == 2)
+            {
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
+            else if (i == 3)
+            {
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 2.0f, 0.0f)); // 이동
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(270.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
         }
-        else if (i == 2)
+        else
         {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 4.0f, 0)); // 이동
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            if (i == 0) {
+
+            }
+            else if (i == 1)
+            {
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 2.0f, 0.0f)); // 이동
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
+            else if (i == 2)
+            {
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 4.0f, 0)); // 이동
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
+            else if (i == 3)
+            {
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(-2.0f, 2.0f, 0)); // 이동
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(270.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+            }
         }
-        else if (i == 3)
-        {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-2.0f,2.0f,0)); // 이동
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(270.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
-        }
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(obstacle.x, obstacle.y, obstacle.z)); // 이동
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(obstacle.x_scale, obstacle.y_scale, obstacle.z_scale));
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(wall.x, wall.y, wall.z)); // 이동
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(wall.x_scale, wall.y_scale, wall.z_scale));
         glUniform3f(objColorLocation, 0.0, 0.0, 1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
@@ -177,15 +203,15 @@ void drawScene()
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
-        glDrawArrays(GL_TRIANGLES, 0, obstacle.Object);
+        glDrawArrays(GL_TRIANGLES, 0, wall.Object);
 
     }
     {
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(obstacle2.x, obstacle2.y, obstacle2.z)); // 이동
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(obstacle2.x_scale, obstacle2.y_scale, obstacle2.z_scale));
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(main_character.x, main_character.y, main_character.z)); // 이동
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(main_character.x_scale, main_character.y_scale, main_character.z_scale));
         glUniform3f(objColorLocation, 1.0, 0.0, 0.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
@@ -198,7 +224,7 @@ void drawScene()
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
-        glDrawArrays(GL_TRIANGLES, 0, obstacle2.Object);
+        glDrawArrays(GL_TRIANGLES, 0, main_character.Object);
 
     }
     glDisableVertexAttribArray(PosLocation);
@@ -220,19 +246,19 @@ void InitBuffer()
 
     glGenBuffers(1, &CirclePosVbo);
     glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo);
-    glBufferData(GL_ARRAY_BUFFER, obstacle.objReader.outvertex.size() * sizeof(glm::vec3), &obstacle.objReader.outvertex[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, wall.objReader.outvertex.size() * sizeof(glm::vec3), &wall.objReader.outvertex[0], GL_STATIC_DRAW);
 
     glGenBuffers(1, &CircleNomalVbo);
     glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo);
-    glBufferData(GL_ARRAY_BUFFER, obstacle.objReader.outnormal.size() * sizeof(glm::vec3), &obstacle.objReader.outnormal[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, wall.objReader.outnormal.size() * sizeof(glm::vec3), &wall.objReader.outnormal[0], GL_STATIC_DRAW);
 
     glGenBuffers(1, &CirclePosVbo2);
     glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo2);
-    glBufferData(GL_ARRAY_BUFFER, obstacle2.objReader.outvertex.size() * sizeof(glm::vec3), &obstacle2.objReader.outvertex[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outvertex.size() * sizeof(glm::vec3), &main_character.objReader.outvertex[0], GL_STATIC_DRAW);
 
     glGenBuffers(1, &CircleNomalVbo2);
     glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo2);
-    glBufferData(GL_ARRAY_BUFFER, obstacle2.objReader.outnormal.size() * sizeof(glm::vec3), &obstacle2.objReader.outnormal[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outnormal.size() * sizeof(glm::vec3), &main_character.objReader.outnormal[0], GL_STATIC_DRAW);
 }
 
 void make_shaderProgram()
@@ -320,10 +346,10 @@ GLvoid handleEvent(unsigned char key, bool state)
     {
         switch (key) {
         case 'a':
-            obstacle2.x -= 0.15f;
+            main_character.x -= 0.15f;
             break;
         case 'd':
-            obstacle2.x += 0.15f;
+            main_character.x += 0.15f;
             break;
         }
     }
@@ -355,47 +381,54 @@ GLvoid Motion(int x, int y) {
 
             if (light.cameraRotation == 0)
             {
-                obstacle2.y = 0.25f;
-                obstacle2.x += rotationChange;
+                main_character.y = 0.25f;
+                main_character.x += rotationChange;
+                light.light_y = 8.0f;
+
             }
             else if (light.cameraRotation == 270)
             {
-                obstacle2.x = 2.0f - obstacle2.x_scale;
-                obstacle2.y += rotationChange;
+                main_character.x = 2.0f - main_character.x_scale;
+                main_character.y += rotationChange;
+                light.light_y = 8.0f;
+
             }
             else if (light.cameraRotation == 180)
             {
-                obstacle2.y = 4.0f - obstacle2.y_scale;
-                obstacle2.x -= rotationChange;
+                main_character.y = 4.0f - main_character.y_scale;
+                main_character.x -= rotationChange;
+                light.light_y = -4.0f;
             }
             else if (light.cameraRotation == 90)
             {
-                obstacle2.x = -2.0f + obstacle2.x_scale;
-                obstacle2.y -= rotationChange;
+                main_character.x = -2.0f + main_character.x_scale;
+                main_character.y -= rotationChange;
+                light.light_y = 8.0f;
+
             }
             // 마우스를 윈도우 중앙으로 이동
             glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
         }
 
-        if (obstacle2.x+obstacle2.x_scale > 2.0f )
+        if (main_character.x+main_character.x_scale > 2.0f )
         {
             light.cameraRotation = 270.0f;
             light.camera_x = 2.0f;
             light.camera_y = 0;
         }
-        else if (obstacle2.x - obstacle2.x_scale < -2.0f)
+        else if (main_character.x - main_character.x_scale < -2.0f)
         {
             light.cameraRotation = 90.0f;
             light.camera_x = -2.0f;
             light.camera_y = 0.0f;
         }
-        else if (obstacle2.y - obstacle2.y_scale <0.0f)
+        else if (main_character.y - main_character.y_scale <0.0f)
         {
             light.cameraRotation = 0.0f;
             light.camera_x = 0.0f;
             light.camera_y = 2.0f;
         }
-        else if (obstacle2.y + obstacle2.y_scale > 4.0f)
+        else if (main_character.y + main_character.y_scale > 4.0f)
         {
             light.cameraRotation = 180.0f;
             light.camera_x = 0.0f;
