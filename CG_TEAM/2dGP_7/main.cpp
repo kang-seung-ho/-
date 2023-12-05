@@ -15,6 +15,8 @@ GLuint MainNomalVbo2;
 
 GLuint spherePosVbo;
 GLuint sphereNomalVbo;
+//종료 조건 넣고
+//
 
 class obs {
 public:
@@ -85,7 +87,8 @@ GLvoid keyUp(unsigned char, int, int);
 GLvoid handleEvent(unsigned char key, bool state);
 GLvoid Motion(int x, int y);
 GLvoid MousePoint(int button, int state, int x, int y);
-
+bool checkCollision(object& sphere, obss& wall);
+int playerHP{};
 int main(int argc, char** argv)
 {
     glutInit(&argc, argv);
@@ -160,6 +163,7 @@ void drawScene()
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &vTransform[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &pTransform[0][0]);
 
+    
 
     int viewPosLocation = glGetUniformLocation(shaderProgramID, "viewPos"); //--- viewPos 값 전달: 카메라 위치
     glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
@@ -268,6 +272,14 @@ void drawScene()
         glDrawArrays(GL_TRIANGLES, 0, sphereObject);
 
     }
+
+    if (checkCollision(won, main_character)) {
+        // 충돌 발생 시 구를 숨깁니다.
+        won.z = -200.0f; // 구의 위치를 화면 밖으로 이동
+        playerHP -= 10;
+        std::cout << playerHP << std::endl;
+    }
+
     glDisableVertexAttribArray(PosLocation);
     glDisableVertexAttribArray(NomalLocation);
 
@@ -504,4 +516,20 @@ GLvoid h_ok(int value) {
     glutPostRedisplay();
 
     glutTimerFunc(60, h_ok, 1);
+}
+
+bool checkCollision(object& sphere, obss& wall) {
+    // AABB - 원 충돌
+    float closestX = std::max(wall.x - wall.x_scale, std::min(sphere.x, wall.x + wall.x_scale));
+    float closestY = std::max(wall.y - wall.y_scale, std::min(sphere.y, wall.y + wall.y_scale));
+    float closestZ = std::max(wall.z - wall.z_scale, std::min(sphere.z, wall.z + wall.z_scale));
+
+    // 원의 중심과 가장 가까운 점 사이의 거리를 계산
+    float distanceX = sphere.x - closestX;
+    float distanceY = sphere.y - closestY;
+    float distanceZ = sphere.z - closestZ;
+
+    // 거리가 원의 반지름보다 작으면 교차점생김
+    float radius = sphere.x_scale;
+    return (distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ) < (radius * radius);
 }
