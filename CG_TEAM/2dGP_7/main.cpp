@@ -7,11 +7,15 @@ GLchar* vertexSource, * fragmentSource;
 GLuint vertexShader, fragmentShader;
 GLuint shaderProgramID;
 
-GLuint CirclePosVbo;
-GLuint CircleNomalVbo;
+GLuint WallPosVbo;
+GLuint WallNomalVbo;
 
-GLuint CirclePosVbo2;
-GLuint CircleNomalVbo2;
+GLuint MainPosVbo2;
+GLuint MainNomalVbo2;
+
+GLuint spherePosVbo;
+GLuint sphereNomalVbo;
+
 class obs {
 public:
     GLfloat x{}, y{}, z{-45.0f};
@@ -25,6 +29,18 @@ public:
     GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
+};
+
+class object {
+public:
+    GLfloat x{}, y{ 0.25f }, z{ -100.0f };
+    GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
+};
+
+class object2 {
+public:
+    GLfloat x{}, y{ 0.25f }, z{ -1.0f };
+    GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
 };
 
 class light_set {
@@ -49,8 +65,12 @@ public:
 
 obs wall;
 obss main_character;
+object won;
+objRead sphereReader;
+GLint sphereObject = sphereReader.loadObj_normalize_center("sphere.obj");
 
 GLfloat Color[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
+GLvoid h_ok(int value);
 
 void make_shaderProgram();
 void make_vertexShaders();
@@ -82,11 +102,11 @@ int main(int argc, char** argv)
     make_shaderProgram();
     InitBuffer();
     glutWarpPointer(800 / 2, 800 / 2);
+    glutTimerFunc(60, h_ok, 1);
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(drawScene);
     glutReshapeFunc(Reshape);
     glutKeyboardUpFunc(keyUp);
-
     glutMouseFunc(MousePoint);
     glutMotionFunc(Motion);
 
@@ -195,11 +215,11 @@ void drawScene()
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
-        glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, WallPosVbo);
         glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(PosLocation);
 
-        glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, WallNomalVbo);
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
@@ -216,15 +236,36 @@ void drawScene()
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
-        glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo2);
+        glBindBuffer(GL_ARRAY_BUFFER, MainPosVbo2);
         glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(PosLocation);
 
-        glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo2);
+        glBindBuffer(GL_ARRAY_BUFFER, MainNomalVbo2);
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
         glDrawArrays(GL_TRIANGLES, 0, main_character.Object);
+
+    }
+    {
+        // 모델 행렬 초기화
+        glm::mat4 modelMatrix(1.0f);
+        // 모델 행렬을 셰이더에 전달
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(won.x, won.y, won.z)); // 이동
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(won.x_scale, won.y_scale, won.z_scale));
+        glUniform3f(objColorLocation, 1.0, 0.0, 0.0);
+
+        glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
+
+        glBindBuffer(GL_ARRAY_BUFFER, spherePosVbo);
+        glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+        glEnableVertexAttribArray(PosLocation);
+
+        glBindBuffer(GL_ARRAY_BUFFER, sphereNomalVbo);
+        glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+        glEnableVertexAttribArray(NomalLocation);
+
+        glDrawArrays(GL_TRIANGLES, 0, sphereObject);
 
     }
     glDisableVertexAttribArray(PosLocation);
@@ -244,21 +285,31 @@ void InitBuffer()
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    glGenBuffers(1, &CirclePosVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo);
+    glGenBuffers(1, &WallPosVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, WallPosVbo);
     glBufferData(GL_ARRAY_BUFFER, wall.objReader.outvertex.size() * sizeof(glm::vec3), &wall.objReader.outvertex[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &CircleNomalVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo);
+    glGenBuffers(1, &WallNomalVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, WallNomalVbo);
     glBufferData(GL_ARRAY_BUFFER, wall.objReader.outnormal.size() * sizeof(glm::vec3), &wall.objReader.outnormal[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &CirclePosVbo2);
-    glBindBuffer(GL_ARRAY_BUFFER, CirclePosVbo2);
+    glGenBuffers(1, &MainPosVbo2);
+    glBindBuffer(GL_ARRAY_BUFFER, MainPosVbo2);
     glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outvertex.size() * sizeof(glm::vec3), &main_character.objReader.outvertex[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &CircleNomalVbo2);
-    glBindBuffer(GL_ARRAY_BUFFER, CircleNomalVbo2);
+    glGenBuffers(1, &MainNomalVbo2);
+    glBindBuffer(GL_ARRAY_BUFFER, MainNomalVbo2);
     glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outnormal.size() * sizeof(glm::vec3), &main_character.objReader.outnormal[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &spherePosVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, spherePosVbo);
+    glBufferData(GL_ARRAY_BUFFER, sphereReader.outvertex.size() * sizeof(glm::vec3), &sphereReader.outvertex[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &sphereNomalVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, sphereNomalVbo);
+    glBufferData(GL_ARRAY_BUFFER, sphereReader.outnormal.size() * sizeof(glm::vec3), &sphereReader.outnormal[0], GL_STATIC_DRAW);
+
+
 }
 
 void make_shaderProgram()
@@ -367,6 +418,7 @@ GLvoid MousePoint(int button, int state, int x, int y) {
         }
     }
 }
+
 int move_check = 0;
 
 GLvoid Motion(int x, int y) {
@@ -440,3 +492,16 @@ GLvoid Motion(int x, int y) {
     }
 }
 
+GLvoid h_ok(int value) {
+    if (won.z > -1.0f)
+    {
+        won.z = -200.0f;
+    }
+    won.z += 1.0f;
+    
+
+    InitBuffer();
+    glutPostRedisplay();
+
+    glutTimerFunc(60, h_ok, 1);
+}
