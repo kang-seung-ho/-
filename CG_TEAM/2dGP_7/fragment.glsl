@@ -9,7 +9,7 @@ uniform vec3 objectColor;
 uniform vec3 viewPos;
 
 void main() {
-    vec3 ambientLight = vec3(0.5); // Ambient light intensity
+    vec3 ambientLight = vec3(0.0); // Ambient light intensity
     vec3 ambient = ambientLight * lightColor;
 
     vec3 normalVector = normalize(Normal);
@@ -17,7 +17,7 @@ void main() {
     float diffuseLight = max(dot(normalVector, lightDir), 0.0);
     vec3 diffuse = diffuseLight * lightColor;
 
-    int shininess = 128;
+    int shininess = 256;
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, normalVector);
     float specularLight = max(dot(viewDir, reflectDir), 0.0);
