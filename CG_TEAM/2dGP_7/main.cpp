@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 
     glewExperimental = GL_TRUE;
     glEnable(GL_DEPTH_TEST);
-
+    glutSetCursor(GLUT_CURSOR_NONE);
     glewInit();
 
     make_shaderProgram();
@@ -404,6 +404,7 @@ GLvoid Motion(int x, int y) {
                 main_character.x = -2.0f + main_character.x_scale;
                 main_character.y -= rotationChange;
                 light.light_y = 8.0f;
+
 
             }
             // 마우스를 윈도우 중앙으로 이동
