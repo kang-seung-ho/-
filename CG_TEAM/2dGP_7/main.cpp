@@ -30,6 +30,7 @@ public:
     GLfloat x{}, y{0.25f}, z{ -1.0f };
     GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
     objRead objReader;
+    int jump_scale{};
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
 };
 
@@ -87,8 +88,11 @@ GLvoid keyUp(unsigned char, int, int);
 GLvoid handleEvent(unsigned char key, bool state);
 GLvoid Motion(int x, int y);
 GLvoid MousePoint(int button, int state, int x, int y);
+GLvoid j_ok(int value);
+GLvoid jump();
 bool checkCollision(object& sphere, obss& wall);
 int playerHP{};
+
 int main(int argc, char** argv)
 {
     glutInit(&argc, argv);
@@ -119,6 +123,8 @@ int main(int argc, char** argv)
 }
 
 
+
+int jump_check = 3;
 light_set light;
 
 void drawScene()
@@ -408,11 +414,10 @@ GLvoid handleEvent(unsigned char key, bool state)
     if (state)
     {
         switch (key) {
-        case 'a':
-            main_character.x -= 0.15f;
+        case 'z':
+            jump();
             break;
-        case 'd':
-            main_character.x += 0.15f;
+        case 'c':
             break;
         }
     }
@@ -433,6 +438,7 @@ GLvoid MousePoint(int button, int state, int x, int y) {
 
 int move_check = 0;
 
+
 GLvoid Motion(int x, int y) {
     {
         if (left_button) {
@@ -445,64 +451,107 @@ GLvoid Motion(int x, int y) {
 
             if (light.cameraRotation == 0)
             {
-                main_character.y = 0.25f;
+                main_character.y = 0.25f + 0.1f * main_character.jump_scale;
                 main_character.x += rotationChange;
                 light.light_y = 8.0f;
 
             }
             else if (light.cameraRotation == 270)
             {
-                main_character.x = 2.0f - main_character.x_scale;
+                main_character.x = 2.0f - main_character.x_scale - 0.1f * main_character.jump_scale;
                 main_character.y += rotationChange;
                 light.light_y = 8.0f;
 
             }
             else if (light.cameraRotation == 180)
             {
-                main_character.y = 4.0f - main_character.y_scale;
+                main_character.y = 4.0f - main_character.y_scale - 0.1f * main_character.jump_scale;
                 main_character.x -= rotationChange;
                 light.light_y = -4.0f;
             }
             else if (light.cameraRotation == 90)
             {
-                main_character.x = -2.0f + main_character.x_scale;
+                main_character.x = -2.0f + main_character.x_scale + 0.1f * main_character.jump_scale;
                 main_character.y -= rotationChange;
                 light.light_y = 8.0f;
-
-
             }
             // 마우스를 윈도우 중앙으로 이동
             glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
         }
 
-        if (main_character.x+main_character.x_scale > 2.0f )
+        if (main_character.x + main_character.x_scale > 2.0f)
         {
             light.cameraRotation = 270.0f;
             light.camera_x = 2.0f;
             light.camera_y = 0;
+            jump_check = 3;
+            main_character.jump_scale = 0;
         }
         else if (main_character.x - main_character.x_scale < -2.0f)
         {
             light.cameraRotation = 90.0f;
             light.camera_x = -2.0f;
             light.camera_y = 0.0f;
+            jump_check = 3;
+            main_character.jump_scale = 0;
         }
-        else if (main_character.y - main_character.y_scale <0.0f)
+        else if (main_character.y - main_character.y_scale < 0.0f)
         {
             light.cameraRotation = 0.0f;
             light.camera_x = 0.0f;
             light.camera_y = 2.0f;
+            jump_check = 3;
+            main_character.jump_scale = 0;
         }
         else if (main_character.y + main_character.y_scale > 4.0f)
         {
             light.cameraRotation = 180.0f;
             light.camera_x = 0.0f;
             light.camera_y = -2.0f;
+            main_character.jump_scale = 0;
+            jump_check = 3;
         }
         InitBuffer();
         glutPostRedisplay();
     }
 }
+
+GLvoid jump() {
+    if (light.cameraRotation == 0)
+    {
+        if (jump_check == 3) {
+            jump_check = 0;
+            main_character.jump_scale = 0;
+            glutTimerFunc(60, j_ok, 1);
+        }
+    }
+    else if (light.cameraRotation == 270)
+    {
+        if (jump_check == 3) {
+            jump_check = 0;
+            main_character.jump_scale = 0;
+            glutTimerFunc(60, j_ok, 1);
+        }
+    }
+    else if (light.cameraRotation == 180)
+    {
+        if (jump_check == 3) {
+            jump_check = 0;
+            main_character.jump_scale = 0;
+            glutTimerFunc(60, j_ok, 1);
+        }
+    }
+    else if (light.cameraRotation == 90)
+    {
+
+        if (jump_check == 3) {
+            jump_check = 0;
+            main_character.jump_scale = 0;
+            glutTimerFunc(60, j_ok, 1);
+        }
+    }
+}
+
 
 GLvoid h_ok(int value) {
     if (won.z > -1.0f)
@@ -532,4 +581,28 @@ bool checkCollision(object& sphere, obss& wall) {
     // 거리가 원의 반지름보다 작으면 교차점생김
     float radius = sphere.x_scale;
     return (distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ) < (radius * radius);
+}
+
+
+GLvoid j_ok(int value) {
+
+    if (jump_check != 3) {
+    if (main_character.jump_scale < 15 && jump_check == 0) {
+        main_character.jump_scale += 1;
+        if (main_character.jump_scale == 15)
+        {
+            jump_check = 1;
+        }
+    }
+    else if (main_character.jump_scale > 0 && jump_check == 1) {
+        main_character.jump_scale -= 1;
+        if (main_character.jump_scale == 0)
+        {
+            jump_check = 3;
+        }
+    }
+    InitBuffer();
+    glutPostRedisplay();
+    glutTimerFunc(30, j_ok, 1);
+    }
 }
