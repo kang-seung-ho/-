@@ -18,6 +18,14 @@ GLuint sphereNomalVbo;
 //종료 조건 넣고
 //
 
+
+std::default_random_engine engine(std::random_device{}());
+
+std::uniform_real_distribution<GLfloat> random_scale(0.25f, 0.5f);
+std::uniform_real_distribution<GLfloat> random_move(-0.1f, 0.1f);
+std::uniform_real_distribution<GLfloat> random_color(0.0f, 1.0f);
+
+
 class obs {
 public:
     GLfloat x{}, y{}, z{-45.0f};
@@ -34,16 +42,53 @@ public:
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
 };
 
-class object {
+class object_won {
 public:
     GLfloat x{}, y{ 0.25f }, z{ -100.0f };
     GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
-};
+    GLfloat x_move{}, y_move{};
+    GLfloat r{}, g{}, b{}, a{ 1.0 };
+    GLuint vvbo{}, nvbo{};
 
-class object2 {
-public:
-    GLfloat x{}, y{ 0.25f }, z{ -1.0f };
-    GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
+    void init() {
+        this->z = -100.0f;
+        this->x = 0.0f;
+        this->y = 2.0f;
+
+
+        this->r = random_color(engine);
+        this->g = random_color(engine);
+        this->b = random_color(engine);
+
+        float size = random_scale(engine);
+
+        this->x_scale = size;
+        this->y_scale = size;
+        this->z_scale = size;
+
+        this->x_move = random_move(engine);
+        this->y_move = random_move(engine);
+
+        this->vvbo = spherePosVbo;
+        this->nvbo = sphereNomalVbo;
+    }
+
+    void move() {
+        this->x += this->x_move;
+        this->y += this->y_move;
+
+        this->z += 1.0f;
+
+        if (this->x + this->x_scale + this->x_move > 2.0f || this->x - this->x_scale + this->x_move < -2.0f)
+        {
+            this->x_move *= -1;
+        }
+        if (this->y + this->y_scale + this->y_move > 4.0f || this->y - this->y_scale + this->y_move < 0.0f)
+        {
+            this->y_move *= -1;
+        }
+    }
+
 };
 
 class light_set {
@@ -68,12 +113,14 @@ public:
 
 obs wall;
 obss main_character;
-object won;
+
+std::vector<object_won> objects;
+
 objRead sphereReader;
 GLint sphereObject = sphereReader.loadObj_normalize_center("sphere.obj");
 
 GLfloat Color[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
-GLvoid h_ok(int value);
+GLvoid update(int value);
 
 void make_shaderProgram();
 void make_vertexShaders();
@@ -90,8 +137,15 @@ GLvoid Motion(int x, int y);
 GLvoid MousePoint(int button, int state, int x, int y);
 GLvoid j_ok(int value);
 GLvoid jump();
-bool checkCollision(object& sphere, obss& wall);
+GLvoid object_ok(int value);
+
+bool checkCollision(object_won& , obss& );
+
 int playerHP{};
+int move_check{};
+int jump_check = 3;
+int sever_level = 0;
+light_set light;
 
 int main(int argc, char** argv)
 {
@@ -109,7 +163,7 @@ int main(int argc, char** argv)
     make_shaderProgram();
     InitBuffer();
     glutWarpPointer(800 / 2, 800 / 2);
-    glutTimerFunc(60, h_ok, 1);
+    glutTimerFunc(60, update, 1);
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(drawScene);
     glutReshapeFunc(Reshape);
@@ -122,14 +176,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
-
-
-int jump_check = 3;
-light_set light;
-
 void drawScene()
 {
-    
+
     glClearColor(Color[0], Color[1], Color[2], Color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -160,6 +209,7 @@ void drawScene()
 
     glm::mat4 vTransform(1.0f);
     glm::mat4 pTransform(1.0f);
+
     vTransform = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 
     vTransform = glm::rotate(vTransform, glm::radians(light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
@@ -169,12 +219,12 @@ void drawScene()
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &vTransform[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &pTransform[0][0]);
 
-    
+
 
     int viewPosLocation = glGetUniformLocation(shaderProgramID, "viewPos"); //--- viewPos 값 전달: 카메라 위치
     glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
 
-    for (int i =0;i<4;i++){
+    for (int i = 0; i < 4; i++) {
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
@@ -221,7 +271,7 @@ void drawScene()
         }
         modelMatrix = glm::translate(modelMatrix, glm::vec3(wall.x, wall.y, wall.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(wall.x_scale, wall.y_scale, wall.z_scale));
-        glUniform3f(objColorLocation, 0.0, 0.0, 1.0);
+        glUniform4f(objColorLocation, 0.0, 0.0, 1.0,1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
@@ -242,7 +292,7 @@ void drawScene()
         // 모델 행렬을 셰이더에 전달
         modelMatrix = glm::translate(modelMatrix, glm::vec3(main_character.x, main_character.y, main_character.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(main_character.x_scale, main_character.y_scale, main_character.z_scale));
-        glUniform3f(objColorLocation, 1.0, 0.0, 0.0);
+        glUniform4f(objColorLocation, 1.0, 0.0, 0.0,1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
@@ -257,33 +307,25 @@ void drawScene()
         glDrawArrays(GL_TRIANGLES, 0, main_character.Object);
 
     }
-    {
+    for (int i = 0; i < objects.size(); i++){
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
-        modelMatrix = glm::translate(modelMatrix, glm::vec3(won.x, won.y, won.z)); // 이동
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(won.x_scale, won.y_scale, won.z_scale));
-        glUniform3f(objColorLocation, 1.0, 0.0, 0.0);
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(objects[i].x, objects[i].y, objects[i].z)); // 이동
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(objects[i].x_scale, objects[i].y_scale, objects[i].z_scale));
+        glUniform4f(objColorLocation, objects[i].r, objects[i].g, objects[i].b, objects[i].a);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
-        glBindBuffer(GL_ARRAY_BUFFER, spherePosVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, objects[i].vvbo);
         glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(PosLocation);
 
-        glBindBuffer(GL_ARRAY_BUFFER, sphereNomalVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, objects[i].nvbo);
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
         glDrawArrays(GL_TRIANGLES, 0, sphereObject);
-
-    }
-
-    if (checkCollision(won, main_character)) {
-        // 충돌 발생 시 구를 숨깁니다.
-        won.z = -200.0f; // 구의 위치를 화면 밖으로 이동
-        playerHP -= 10;
-        std::cout << playerHP << std::endl;
     }
 
     glDisableVertexAttribArray(PosLocation);
@@ -398,6 +440,56 @@ char* filetobuf(const char* file)
     return buf;
 }
 
+
+
+GLvoid update(int value) {
+
+    for (int i = 0; i < objects.size(); i++)
+    {
+        if (objects[i].z > 5.0f)
+        {
+            objects[i].init();
+        }
+        objects[i].move();
+
+        if (checkCollision(objects[i], main_character)) {
+            // 충돌 발생 시 구를 숨깁니다.
+            objects[i].z = -200.0f; // 구의 위치를 화면 밖으로 이동
+            playerHP -= 10;
+            std::cout << playerHP << std::endl;
+        }
+    }
+
+
+    if (light.cameraRotation == 0)
+    {
+        main_character.y = 0.25f + 0.1f * main_character.jump_scale;
+        light.light_y = 8.0f;
+
+    }
+    else if (light.cameraRotation == 270)
+    {
+        main_character.x = 2.0f - main_character.x_scale - 0.1f * main_character.jump_scale;
+        light.light_y = 8.0f;
+
+    }
+    else if (light.cameraRotation == 180)
+    {
+        main_character.y = 4.0f - main_character.y_scale - 0.1f * main_character.jump_scale;
+        light.light_y = -4.0f;
+    }
+    else if (light.cameraRotation == 90)
+    {
+        main_character.x = -2.0f + main_character.x_scale + 0.1f * main_character.jump_scale;
+        light.light_y = 8.0f;
+    }
+
+    InitBuffer();
+    glutPostRedisplay();
+
+    glutTimerFunc(30, update, 1);
+}
+
 GLvoid keyboard(unsigned char key, int x, int y)
 {
     handleEvent(key, true);
@@ -418,6 +510,11 @@ GLvoid handleEvent(unsigned char key, bool state)
             jump();
             break;
         case 'c':
+            if (sever_level != 1) {
+                sever_level = 1;
+
+                glutTimerFunc(90, object_ok, 1);
+            }
             break;
         }
     }
@@ -428,6 +525,7 @@ GLvoid MousePoint(int button, int state, int x, int y) {
         if (state == GLUT_UP) {
            left_button = false;
             glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
+
         }
         else {
            left_button = true;
@@ -435,9 +533,6 @@ GLvoid MousePoint(int button, int state, int x, int y) {
         }
     }
 }
-
-int move_check = 0;
-
 
 GLvoid Motion(int x, int y) {
     {
@@ -552,22 +647,7 @@ GLvoid jump() {
     }
 }
 
-
-GLvoid h_ok(int value) {
-    if (won.z > -1.0f)
-    {
-        won.z = -200.0f;
-    }
-    won.z += 1.0f;
-    
-
-    InitBuffer();
-    glutPostRedisplay();
-
-    glutTimerFunc(60, h_ok, 1);
-}
-
-bool checkCollision(object& sphere, obss& wall) {
+bool checkCollision(object_won& sphere, obss& wall) {
     // AABB - 원 충돌
     float closestX = std::max(wall.x - wall.x_scale, std::min(sphere.x, wall.x + wall.x_scale));
     float closestY = std::max(wall.y - wall.y_scale, std::min(sphere.y, wall.y + wall.y_scale));
@@ -604,5 +684,22 @@ GLvoid j_ok(int value) {
     InitBuffer();
     glutPostRedisplay();
     glutTimerFunc(30, j_ok, 1);
+    }
+}
+
+
+
+GLvoid object_ok(int value) {
+
+    if (objects.size() < 5) {
+        object_won new_object;
+        new_object.init(); // 객체 초기화
+
+        objects.push_back(new_object);
+
+
+        InitBuffer();
+        glutPostRedisplay();
+        glutTimerFunc(480, object_ok, 1);
     }
 }

@@ -5,7 +5,7 @@ out vec4 FragColor;
 
 uniform vec3 lightPos;
 uniform vec3 lightColor;
-uniform vec3 objectColor;
+uniform vec4 objectColor;
 uniform vec3 viewPos;
 
 void main() {
@@ -23,8 +23,8 @@ void main() {
     float specularLight = max(dot(viewDir, reflectDir), 0.0);
     specularLight = pow(specularLight, float(shininess));
     vec3 specular = specularLight * lightColor;
+    
+    vec4 result = vec4(ambient + (diffuse + specular) ,1.0) * objectColor;
 
-    vec3 result = (ambient + diffuse + specular) * objectColor;
-
-    FragColor = vec4(result, 1.0);
+    FragColor = result;
 }
