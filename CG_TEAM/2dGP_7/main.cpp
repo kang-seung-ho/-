@@ -1,5 +1,7 @@
 #include "main.h"
 #include "obj.h"
+#pragma comment(lib, "winmm")
+#include <mmsystem.h>
 
 GLuint vao;
 
@@ -38,6 +40,44 @@ std::uniform_real_distribution<GLfloat> random_snow_pos_y_move(-0.2f, -0.05f);
 
 std::uniform_real_distribution<double> random_model(1, 6);
 
+void setOrthographicProjection() {
+    // 현재 행렬 모드 저장
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // 현재 뷰포트 가져오기
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    // 투영 모드로 전환
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // 직교 투영 행렬 설정
+    gluOrtho2D(0, viewport[2], 0, viewport[3]);
+
+    // 모델뷰 모드로 다시 전환
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void resetPerspectiveProjection() {
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+}
+
+
+void renderBitmapString(float x, float y, void* font, const char* string) {
+    const char* c;
+    glRasterPos2f(x, y);
+    for (c = string; *c != '\0'; c++) {
+        glutBitmapCharacter(font, *c);
+    }
+}
+
 
 class obs {
 public:
@@ -46,7 +86,6 @@ public:
     GLfloat x_scale{2.0f}, y_scale{0.0001f}, z_scale{50.0f};
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
-
 
 };
 class obss {
@@ -242,7 +281,7 @@ bool shoot_check = true;
 int playerHP = 100;
 
 light_set light;
-
+#define GAME_BGM "gamebgm.wav"
 int main(int argc, char** argv)
 {
     glutInit(&argc, argv);
@@ -257,12 +296,16 @@ int main(int argc, char** argv)
     glewInit();
 
     make_shaderProgram();
-    
     InitBuffer();
     glutWarpPointer(800 / 2, 800 / 2);
     glutTimerFunc(1000, next_stage, 1);
     glutTimerFunc(60, update, 1);
     glutTimerFunc(30, shoot_ok, 1);
+
+    main_character.init(cubePosVbo2, cubeNomalVbo2);
+    main_character.Object = CubeObject;
+
+    PlaySound(TEXT(GAME_BGM), NULL, SND_ASYNC | SND_LOOP);
 
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(drawScene);
@@ -503,6 +546,32 @@ void drawScene()
     glDisableVertexAttribArray(PosLocation);
     glDisableVertexAttribArray(NomalLocation);
 
+    // 현재 뷰포트 크기를 얻습니다.
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    int windowWidth = viewport[2];
+    int windowHeight = viewport[3];
+
+    // 직교 투영 설정
+    setOrthographicProjection();
+
+    glUseProgram(0);
+
+    // 텍스트 렌더링
+    glPushMatrix();
+    glLoadIdentity();
+
+    // 텍스트의 위치를 화면 우측 상단으로 설정
+    float x = windowWidth - 100; // 화면 너비에서 100px 떨어진 위치
+    float y = windowHeight - 30; // 화면 높이에서 30px 떨어진 위치
+    renderBitmapString(x, y, GLUT_BITMAP_HELVETICA_18, ("HP: " + std::to_string(main_character.hp)).c_str());
+
+    glPopMatrix();
+
+    // 원래 투영으로 복귀
+    resetPerspectiveProjection();
+
+    glUseProgram(shaderProgramID);
 
 
     glutSwapBuffers();
@@ -640,7 +709,7 @@ GLvoid update(int value) {
         if (checkCollision(objects[i], main_character)) {
             // 충돌 발생 시 구를 숨깁니다.
             objects[i].z = -200.0f; // 구의 위치를 화면 밖으로 이동
-            main_character.hp -= 1;
+            main_character.hp -= 10;
             main_character.init(objects[i].vvbo, objects[i].nvbo);
             main_character.Object = objects[i].object_num;
 
@@ -1005,6 +1074,7 @@ GLvoid object_ok(int value) {
         }
         else {
             new_object.init(cubePosVbo2, cubeNomalVbo2); // 객체 초기화
+            new_object.object_num = CubeObject;
         }
         if (sever_level > 2) {
             new_object.a = 0.1f;
@@ -1038,8 +1108,6 @@ GLvoid snow_init(int value) {
 GLvoid next_stage(int value) {
     if (game_check) {
 
-        main_character.vvbo = cubePosVbo2;
-        main_character.nvbo = cubeNomalVbo2;
 
         std::cout << sever_level << std::endl;
         if (sever_level < 5) {
