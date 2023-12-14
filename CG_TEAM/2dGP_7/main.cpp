@@ -84,6 +84,9 @@ public:
     GLfloat x{}, y{}, z{-45.0f};
 
     GLfloat x_scale{2.0f}, y_scale{0.0001f}, z_scale{50.0f};
+
+    GLfloat r{ 1 }, g{ 0 }, b{ 0 }, a{ 1.0 };
+
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
 
@@ -361,7 +364,7 @@ void drawScene()
 
     vTransform = glm::rotate(vTransform, glm::radians(light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
 
-    pTransform = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 200.0f); //--- 투영 공간 설정: fovy, aspect, near, far
+    pTransform = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 190.0f); //--- 투영 공간 설정: fovy, aspect, near, far
 
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &vTransform[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &pTransform[0][0]);
@@ -417,7 +420,7 @@ void drawScene()
         }
         modelMatrix = glm::translate(modelMatrix, glm::vec3(wall.x, wall.y, wall.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(wall.x_scale, wall.y_scale, wall.z_scale));
-        glUniform4f(objColorLocation, 0.0, 0.0, 1.0,1.0);
+        glUniform4f(objColorLocation, wall.r, wall.g, wall.b,wall.a);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
@@ -440,7 +443,7 @@ void drawScene()
         // 모델 행렬을 셰이더에 전달
         modelMatrix = glm::translate(modelMatrix, glm::vec3(main_character.x, main_character.y, main_character.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(main_character.x_scale, main_character.y_scale, main_character.z_scale));
-        modelMatrix = glm::rotate(modelMatrix, glm::radians(light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(-light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
         glUniform4f(objColorLocation, main_character.r, main_character.g, main_character.b, 1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
@@ -707,8 +710,7 @@ GLvoid update(int value) {
         objects[i].move();
 
         if (checkCollision(objects[i], main_character)) {
-            // 충돌 발생 시 구를 숨깁니다.
-            objects[i].z = -200.0f; // 구의 위치를 화면 밖으로 이동
+            objects[i].z = -200.0f; 
             main_character.hp -= 10;
             main_character.init(objects[i].vvbo, objects[i].nvbo);
             main_character.Object = objects[i].object_num;
@@ -739,10 +741,7 @@ GLvoid update(int value) {
                     bullets.pop_back();
 
                     if (sever_level > 1) {
-                        objects[k].init(RockPosVbo, RockNomalVbo); // 객체 초기화
-                    }
-                    else {
-                        objects[k].init(cubePosVbo2, cubeNomalVbo2); // 객체 초기화
+                        objects[k].z = -100; // 객체 초기화
                     }
                     break;
                 }
@@ -1115,20 +1114,34 @@ GLvoid next_stage(int value) {
         }
 
         if (sever_level == 1) {
-
+            wall.r = 0.8f;
+            wall.g = 0.1f;
+            wall.b = 0.1f;
             objects.clear();
             glutTimerFunc(900, object_ok, 1);
         }
         else if (sever_level == 2) {
 
+            wall.r = 0.1f;
+            wall.g = 0.5f;
+            wall.b = 0.1f;
             objects.clear();
             glutTimerFunc(900, object_ok, 1);
         }
         else if (sever_level == 3) {
+
+            wall.r = 0.1f;
+            wall.g = 0.1f;
+            wall.b = 1.0f;
             objects.clear();
             glutTimerFunc(900, object_ok, 1);
         }
         else if (sever_level == 4) {
+
+            wall.r = 0.0f;
+            wall.g = 0.0;
+            wall.b = 0.8f;
+
             light.cameraRotation = 0.0f;
             light.camera_x = 0.0f;
             light.camera_y = 2.0f;
@@ -1142,7 +1155,7 @@ GLvoid next_stage(int value) {
             snow_init(1);
         }
 
-        glutTimerFunc(10000, next_stage, 1);
+        glutTimerFunc(30000, next_stage, 1);
         InitBuffer();
         glutPostRedisplay();
     }
@@ -1163,6 +1176,6 @@ GLvoid shoot_ok(int value) {
     InitBuffer();
     glutPostRedisplay();
 
-    glutTimerFunc(3000, shoot_ok, 1);
+    glutTimerFunc(100, shoot_ok, 1);
 
 }
