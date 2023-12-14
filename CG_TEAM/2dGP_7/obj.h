@@ -18,9 +18,9 @@ struct objRead {
     float scaleX, scaleY, scaleZ;
     float minX = 0.0, minY = 0.0, minZ = 0.0;
     float maxX = 0.0, maxY = 0.0, maxZ = 0.0;
-    float scaleAll;
+    float scaleAll{};
 
-    float sizeX, sizeY, sizeZ;
+    float sizeX{}, sizeY{}, sizeZ{};
 
     int loadObj_normalize_center(const char* filename);
 

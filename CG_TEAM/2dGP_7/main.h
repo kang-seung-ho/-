@@ -17,4 +17,26 @@
 #include <math.h>
 #include <vector>
 
+
+void make_shaderProgram();
+void make_vertexShaders();
+void make_fragmentShaders();
+void drawScene();
+void Reshape(int w, int h);
+void InitBuffer();
+char* filetobuf(const char*);
+
+GLvoid shoot();
+GLvoid keyboard(unsigned char key, int x, int y);
+GLvoid keyUp(unsigned char, int, int);
+GLvoid handleEvent(unsigned char key, bool state);
+GLvoid Motion(int x, int y);
+GLvoid MousePoint(int button, int state, int x, int y);
+GLvoid jump_ok(int value);
+GLvoid jump();
+GLvoid object_ok(int value);
+GLvoid snow_init(int value);
+GLvoid next_stage(int value);
+GLvoid update(int value);
+
 #endif

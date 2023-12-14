@@ -15,8 +15,9 @@ GLuint MainNomalVbo2;
 
 GLuint spherePosVbo;
 GLuint sphereNomalVbo;
-//종료 조건 넣고
-//
+
+GLuint hpPosVbo;
+GLuint hpNomalVbo;
 
 
 std::default_random_engine engine(std::random_device{}());
@@ -24,11 +25,16 @@ std::default_random_engine engine(std::random_device{}());
 std::uniform_real_distribution<GLfloat> random_scale(0.25f, 0.5f);
 std::uniform_real_distribution<GLfloat> random_move(-0.1f, 0.1f);
 std::uniform_real_distribution<GLfloat> random_color(0.0f, 1.0f);
+std::uniform_real_distribution<double> random_rotate(-10.0f, 10.0f);
 
+std::uniform_real_distribution<double> random_snow_pos_z(-30.0f, 2.0f);
+std::uniform_real_distribution<double> random_snow_pos_x(-2.0f, 2.0f);
+std::uniform_real_distribution<double> random_snow_pos_y_move(-0.2f, -0.05f);
 
 class obs {
 public:
     GLfloat x{}, y{}, z{-45.0f};
+
     GLfloat x_scale{2.0f}, y_scale{0.0001f}, z_scale{50.0f};
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
@@ -37,9 +43,18 @@ class obss {
 public:
     GLfloat x{}, y{0.25f}, z{ -1.0f };
     GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
+
+    GLfloat r{ 1 }, g{ 0 }, b{ 0 }, a{ 1.0 };
     objRead objReader;
     int jump_scale{};
+    int hp = 3;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
+
+    void change_color(float r, float g, float b) {
+        this->r = r;
+        this->g = g;
+        this->b = b;
+    }
 };
 
 class object_won {
@@ -49,12 +64,15 @@ public:
     GLfloat x_move{}, y_move{};
     GLfloat r{}, g{}, b{}, a{ 1.0 };
     GLuint vvbo{}, nvbo{};
+    GLfloat rotate{};
+    int rotate_move{};
 
-    void init() {
+
+    void init(int PosVbo, int NomalVbo ) {
         this->z = -100.0f;
         this->x = 0.0f;
         this->y = 2.0f;
-
+        this->rotate_move = random_rotate(engine);
 
         this->r = random_color(engine);
         this->g = random_color(engine);
@@ -69,8 +87,8 @@ public:
         this->x_move = random_move(engine);
         this->y_move = random_move(engine);
 
-        this->vvbo = spherePosVbo;
-        this->nvbo = sphereNomalVbo;
+        this->vvbo = PosVbo;
+        this->nvbo = NomalVbo;
     }
 
     void move() {
@@ -79,14 +97,23 @@ public:
 
         this->z += 1.0f;
 
+        if (this->z > 5.0f)
+        {
+            this->init(this->vvbo, this->nvbo);
+        }
+
         if (this->x + this->x_scale + this->x_move > 2.0f || this->x - this->x_scale + this->x_move < -2.0f)
         {
             this->x_move *= -1;
+            this->rotate_move *= -1;
         }
         if (this->y + this->y_scale + this->y_move > 4.0f || this->y - this->y_scale + this->y_move < 0.0f)
         {
             this->y_move *= -1;
+            this->rotate_move *= -1;
         }
+
+        this->rotate += this->rotate_move;
     }
 
 };
@@ -111,40 +138,85 @@ public:
     float camera_z = 5.0f;
 };
 
+
+class bullet {
+public:
+    GLfloat x{}, y{  }, z{  };
+    GLfloat scale{ 0.05 };
+    GLfloat z_move{1.0f};
+    GLuint vvbo{}, nvbo{};
+
+
+    void init(float x, float y, float z) {
+        this->z = z;
+        this->x = x;
+        this->y = y;
+
+        this->vvbo = MainPosVbo2;
+        this->nvbo = MainNomalVbo2;
+    }
+
+    void move() {
+        this->z -= this->z_move;
+    }
+
+};
+
+class snow {
+public:
+    GLfloat x{}, y{  }, z{  };
+    GLfloat scale{ 0.025 };
+    GLfloat x_move{}, y_move{};
+    GLuint vvbo{}, nvbo{};
+    
+
+
+    void init() {
+        this->z = random_snow_pos_z(engine);
+        this->x = random_snow_pos_x(engine);
+        this->y = 4.0f;
+        this->y_move = random_snow_pos_y_move(engine);
+    }
+
+    void move() {
+        this->y += this->y_move;
+        if (this->y <= 0)
+        {
+            this->init();
+        }
+    }
+
+};
 obs wall;
 obss main_character;
 
 std::vector<object_won> objects;
+std::vector< bullet> bullets;
+std::vector<snow> snows;
 
-objRead sphereReader;
-GLint sphereObject = sphereReader.loadObj_normalize_center("sphere.obj");
+objRead RockReader;
+GLint RockObject = RockReader.loadObj_normalize_center("rock.obj");
+
+
+objRead CubeReader;
+GLint CubeObject = CubeReader.loadObj_normalize_center("cube.obj");
+
+objRead snowReader;
+GLint snowObject = snowReader.loadObj_normalize_center("sphere.obj");
 
 GLfloat Color[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
-GLvoid update(int value);
 
-void make_shaderProgram();
-void make_vertexShaders();
-void make_fragmentShaders();
-void drawScene();
-void Reshape(int w, int h);
-void InitBuffer();
-char* filetobuf(const char*);
-
-GLvoid keyboard(unsigned char key, int x, int y);
-GLvoid keyUp(unsigned char, int, int);
-GLvoid handleEvent(unsigned char key, bool state);
-GLvoid Motion(int x, int y);
-GLvoid MousePoint(int button, int state, int x, int y);
-GLvoid j_ok(int value);
-GLvoid jump();
-GLvoid object_ok(int value);
-
+bool checkCollision2(object_won& sphere, bullet& wall);
 bool checkCollision(object_won& , obss& );
-
 int playerHP{};
 int move_check{};
 int jump_check = 3;
 int sever_level = 0;
+bool game_check = true;
+bool left_button = false;
+
+int hp{ 3 };
+
 light_set light;
 
 int main(int argc, char** argv)
@@ -163,6 +235,7 @@ int main(int argc, char** argv)
     make_shaderProgram();
     InitBuffer();
     glutWarpPointer(800 / 2, 800 / 2);
+    glutTimerFunc(1000, next_stage, 1);
     glutTimerFunc(60, update, 1);
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(drawScene);
@@ -224,6 +297,7 @@ void drawScene()
     int viewPosLocation = glGetUniformLocation(shaderProgramID, "viewPos"); //--- viewPos 값 전달: 카메라 위치
     glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
 
+    //상하좌우 벽 그리는 반복문
     for (int i = 0; i < 4; i++) {
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
@@ -286,13 +360,15 @@ void drawScene()
         glDrawArrays(GL_TRIANGLES, 0, wall.Object);
 
     }
+
+    //메인 캐릭터 그리는 반복문
     {
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
         modelMatrix = glm::translate(modelMatrix, glm::vec3(main_character.x, main_character.y, main_character.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(main_character.x_scale, main_character.y_scale, main_character.z_scale));
-        glUniform4f(objColorLocation, 1.0, 0.0, 0.0,1.0);
+        glUniform4f(objColorLocation, main_character.r, main_character.g, main_character.b, 1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
@@ -307,11 +383,16 @@ void drawScene()
         glDrawArrays(GL_TRIANGLES, 0, main_character.Object);
 
     }
+    //장애물들 그리는 반복문
     for (int i = 0; i < objects.size(); i++){
         // 모델 행렬 초기화
         glm::mat4 modelMatrix(1.0f);
         // 모델 행렬을 셰이더에 전달
         modelMatrix = glm::translate(modelMatrix, glm::vec3(objects[i].x, objects[i].y, objects[i].z)); // 이동
+
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(objects[i].rotate), glm::vec3(0.0f, 0.0f, 1.0f)); // X 축 회전
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(objects[i].rotate), glm::vec3(1.0f, 0.0f, 0.0f)); // X 축 회전
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(objects[i].rotate), glm::vec3(0.0f, 1.0f, 0.0f)); // X 축 회전
         modelMatrix = glm::scale(modelMatrix, glm::vec3(objects[i].x_scale, objects[i].y_scale, objects[i].z_scale));
         glUniform4f(objColorLocation, objects[i].r, objects[i].g, objects[i].b, objects[i].a);
 
@@ -325,15 +406,75 @@ void drawScene()
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
-        glDrawArrays(GL_TRIANGLES, 0, sphereObject);
+        if (sever_level > 2) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        glDrawArrays(GL_TRIANGLES, 0, RockObject);
+
+        if (sever_level >2 ) {
+            glDisable(GL_BLEND);
+        }
     }
 
+    for (int i = 0; i < bullets.size(); i++) {
+        // 모델 행렬 초기화
+        glm::mat4 modelMatrix(1.0f);
+        // 모델 행렬을 셰이더에 전달
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(bullets[i].x, bullets[i].y, bullets[i].z)); // 이동
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(bullets[i].scale, bullets[i].scale, bullets[i].scale));
+        glUniform4f(objColorLocation, 1.0f,1.0f,1.0f,1.0f);
+
+        glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bullets[i].vvbo);
+        glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+        glEnableVertexAttribArray(PosLocation);
+
+        glBindBuffer(GL_ARRAY_BUFFER, bullets[i].nvbo);
+        glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+        glEnableVertexAttribArray(NomalLocation);
+
+        if (sever_level > 2) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        glDrawArrays(GL_TRIANGLES, 0, RockObject);
+
+        if (sever_level > 2) {
+            glDisable(GL_BLEND);
+        }
+    }
+
+    if (sever_level >= 4) {
+        for (int i = 0; i < snows.size(); i++) {
+            // 모델 행렬 초기화
+            glm::mat4 modelMatrix(1.0f);
+            // 모델 행렬을 셰이더에 전달
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(snows[i].x, snows[i].y, snows[i].z)); // 이동
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(snows[i].scale, snows[i].scale, snows[i].scale));
+
+            glUniform4f(objColorLocation, 1.0f, 1.0f, 1.0f, 1.0);
+
+            glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
+
+            glBindBuffer(GL_ARRAY_BUFFER, hpPosVbo);
+            glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+            glEnableVertexAttribArray(PosLocation);
+
+            glBindBuffer(GL_ARRAY_BUFFER, hpNomalVbo);
+            glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
+            glEnableVertexAttribArray(NomalLocation);
+
+            glDrawArrays(GL_TRIANGLES, 0, snowObject);
+
+        }
+    }
     glDisableVertexAttribArray(PosLocation);
     glDisableVertexAttribArray(NomalLocation);
 
     glutSwapBuffers();
 }
-
 
 void Reshape(int w, int h)
 {
@@ -363,12 +504,20 @@ void InitBuffer()
 
     glGenBuffers(1, &spherePosVbo);
     glBindBuffer(GL_ARRAY_BUFFER, spherePosVbo);
-    glBufferData(GL_ARRAY_BUFFER, sphereReader.outvertex.size() * sizeof(glm::vec3), &sphereReader.outvertex[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, RockReader.outvertex.size() * sizeof(glm::vec3), &RockReader.outvertex[0], GL_STATIC_DRAW);
 
     glGenBuffers(1, &sphereNomalVbo);
     glBindBuffer(GL_ARRAY_BUFFER, sphereNomalVbo);
-    glBufferData(GL_ARRAY_BUFFER, sphereReader.outnormal.size() * sizeof(glm::vec3), &sphereReader.outnormal[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, RockReader.outnormal.size() * sizeof(glm::vec3), &RockReader.outnormal[0], GL_STATIC_DRAW);
 
+
+    glGenBuffers(1, &hpPosVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, hpPosVbo);
+    glBufferData(GL_ARRAY_BUFFER, snowReader.outvertex.size() * sizeof(glm::vec3), &snowReader.outvertex[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &hpNomalVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, hpNomalVbo);
+    glBufferData(GL_ARRAY_BUFFER, snowReader.outnormal.size() * sizeof(glm::vec3), &snowReader.outnormal[0], GL_STATIC_DRAW);
 
 }
 
@@ -446,20 +595,63 @@ GLvoid update(int value) {
 
     for (int i = 0; i < objects.size(); i++)
     {
-        if (objects[i].z > 5.0f)
-        {
-            objects[i].init();
-        }
         objects[i].move();
 
         if (checkCollision(objects[i], main_character)) {
             // 충돌 발생 시 구를 숨깁니다.
             objects[i].z = -200.0f; // 구의 위치를 화면 밖으로 이동
-            playerHP -= 10;
+            main_character.hp -= 1;
+            if (main_character.hp <= 0)
+            {
+                objects.clear();
+                snows.clear();
+                sever_level = 0;
+                game_check = false;
+            }
+            else
+            {
+                main_character.change_color(objects[i].r, objects[i].g, objects[i].b);
+            }
             std::cout << playerHP << std::endl;
         }
     }
 
+    for (int i = bullets.size() - 1; i >= 0; --i) {
+
+        bullets[i].move();
+        if (objects.size() > 0) {
+            for (int k = 0; k < objects.size(); k++) {
+
+                if (bullets[i].z < -200 || checkCollision2(objects[k], bullets[i])) {
+                    std::swap(bullets[i], bullets.back());
+                    bullets.pop_back();
+
+                    if (sever_level > 1) {
+                        objects[k].init(spherePosVbo, sphereNomalVbo); // 객체 초기화
+                    }
+                    else {
+                        objects[k].init(MainPosVbo2, MainNomalVbo2); // 객체 초기화
+                    }
+                    break;
+                }
+            }
+        }
+        else {
+            if (bullets[i].z < -200) {
+                std::swap(bullets[i], bullets.back());
+                bullets.pop_back();
+            }
+        }
+    }
+
+    if (sever_level >3 )
+    {
+        for (int i = 0; i < snows.size(); i++)
+        {
+            snows[i].move();
+
+        }
+    }
 
     if (light.cameraRotation == 0)
     {
@@ -487,7 +679,9 @@ GLvoid update(int value) {
     InitBuffer();
     glutPostRedisplay();
 
-    glutTimerFunc(30, update, 1);
+    if (game_check) {
+        glutTimerFunc(30, update, 1);
+    }
 }
 
 GLvoid keyboard(unsigned char key, int x, int y)
@@ -510,16 +704,39 @@ GLvoid handleEvent(unsigned char key, bool state)
             jump();
             break;
         case 'c':
-            if (sever_level != 1) {
-                sever_level = 1;
-
+            shoot();
+            break;
+        case '2':
+            if (sever_level != 2) {
+                sever_level = 2;
                 glutTimerFunc(90, object_ok, 1);
             }
             break;
+        case '3':
+            if (sever_level != 3) {
+                sever_level = 3;
+                objects.clear();
+                glutTimerFunc(90, object_ok, 1);
+            }
+            break;
+        case '4':
+            if (sever_level != 4) {
+                sever_level = 4;
+
+                snow_init(1);
+            }
+            break;
+        case 'r':
+            game_check = true;
+            sever_level = 0;
+            objects.clear();
+
+            break;
+
         }
     }
 }
-bool left_button = false;
+
 GLvoid MousePoint(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON) {
         if (state == GLUT_UP) {
@@ -542,14 +759,14 @@ GLvoid Motion(int x, int y) {
 
             // 윈도우 중심(400)에서 마우스 위치의 거리 계산
             GLfloat distanceFromCenter = mouseX2; // 윈도우 중심을 기준으로 거리 계산
-            GLfloat rotationChange = distanceFromCenter * 0.05f; // 필요에 따라 감도 조절
+            GLfloat rotationChange = distanceFromCenter * 0.005f; // 필요에 따라 감도 조절
 
+            
             if (light.cameraRotation == 0)
             {
                 main_character.y = 0.25f + 0.1f * main_character.jump_scale;
                 main_character.x += rotationChange;
                 light.light_y = 8.0f;
-
             }
             else if (light.cameraRotation == 270)
             {
@@ -570,42 +787,53 @@ GLvoid Motion(int x, int y) {
                 main_character.y -= rotationChange;
                 light.light_y = 8.0f;
             }
+
+
+            if(sever_level > 3)
+            {
+                if (main_character.x + main_character.x_scale > 2.0f || main_character.x - main_character.x_scale < -2.0f)
+                {
+                    main_character.x -= rotationChange;
+                }
+            }
             // 마우스를 윈도우 중앙으로 이동
             glutWarpPointer(glutGet(GLUT_WINDOW_WIDTH) / 2, glutGet(GLUT_WINDOW_HEIGHT) / 2);
         }
-
-        if (main_character.x + main_character.x_scale > 2.0f)
-        {
-            light.cameraRotation = 270.0f;
-            light.camera_x = 2.0f;
-            light.camera_y = 0;
-            jump_check = 3;
-            main_character.jump_scale = 0;
+        if(sever_level < 4){
+            if (main_character.x + main_character.x_scale > 2.0f)
+            {
+                light.cameraRotation = 270.0f;
+                light.camera_x = 2.0f;
+                light.camera_y = 0;
+                jump_check = 3;
+                main_character.jump_scale = 0;
+            }
+            else if (main_character.x - main_character.x_scale < -2.0f)
+            {
+                light.cameraRotation = 90.0f;
+                light.camera_x = -2.0f;
+                light.camera_y = 0.0f;
+                jump_check = 3;
+                main_character.jump_scale = 0;
+            }
+            else if (main_character.y - main_character.y_scale < 0.0f)
+            {
+                light.cameraRotation = 0.0f;
+                light.camera_x = 0.0f;
+                light.camera_y = 2.0f;
+                jump_check = 3;
+                main_character.jump_scale = 0;
+            }
+            else if (main_character.y + main_character.y_scale > 4.0f)
+            {
+                light.cameraRotation = 180.0f;
+                light.camera_x = 0.0f;
+                light.camera_y = -2.0f;
+                main_character.jump_scale = 0;
+                jump_check = 3;
+            }
         }
-        else if (main_character.x - main_character.x_scale < -2.0f)
-        {
-            light.cameraRotation = 90.0f;
-            light.camera_x = -2.0f;
-            light.camera_y = 0.0f;
-            jump_check = 3;
-            main_character.jump_scale = 0;
-        }
-        else if (main_character.y - main_character.y_scale < 0.0f)
-        {
-            light.cameraRotation = 0.0f;
-            light.camera_x = 0.0f;
-            light.camera_y = 2.0f;
-            jump_check = 3;
-            main_character.jump_scale = 0;
-        }
-        else if (main_character.y + main_character.y_scale > 4.0f)
-        {
-            light.cameraRotation = 180.0f;
-            light.camera_x = 0.0f;
-            light.camera_y = -2.0f;
-            main_character.jump_scale = 0;
-            jump_check = 3;
-        }
+        
         InitBuffer();
         glutPostRedisplay();
     }
@@ -617,7 +845,7 @@ GLvoid jump() {
         if (jump_check == 3) {
             jump_check = 0;
             main_character.jump_scale = 0;
-            glutTimerFunc(60, j_ok, 1);
+            glutTimerFunc(60, jump_ok, 1);
         }
     }
     else if (light.cameraRotation == 270)
@@ -625,7 +853,7 @@ GLvoid jump() {
         if (jump_check == 3) {
             jump_check = 0;
             main_character.jump_scale = 0;
-            glutTimerFunc(60, j_ok, 1);
+            glutTimerFunc(60, jump_ok, 1);
         }
     }
     else if (light.cameraRotation == 180)
@@ -633,7 +861,7 @@ GLvoid jump() {
         if (jump_check == 3) {
             jump_check = 0;
             main_character.jump_scale = 0;
-            glutTimerFunc(60, j_ok, 1);
+            glutTimerFunc(60, jump_ok, 1);
         }
     }
     else if (light.cameraRotation == 90)
@@ -642,7 +870,7 @@ GLvoid jump() {
         if (jump_check == 3) {
             jump_check = 0;
             main_character.jump_scale = 0;
-            glutTimerFunc(60, j_ok, 1);
+            glutTimerFunc(60, jump_ok, 1);
         }
     }
 }
@@ -663,8 +891,23 @@ bool checkCollision(object_won& sphere, obss& wall) {
     return (distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ) < (radius * radius);
 }
 
+bool checkCollision2(object_won& sphere, bullet& wall) {
+    // AABB - 원 충돌
+    float closestX = std::max(wall.x - wall.scale, std::min(sphere.x, wall.x + wall.scale));
+    float closestY = std::max(wall.y - wall.scale, std::min(sphere.y, wall.y + wall.scale));
+    float closestZ = std::max(wall.z - wall.scale, std::min(sphere.z, wall.z + wall.scale));
 
-GLvoid j_ok(int value) {
+    // 원의 중심과 가장 가까운 점 사이의 거리를 계산
+    float distanceX = sphere.x - closestX;
+    float distanceY = sphere.y - closestY;
+    float distanceZ = sphere.z - closestZ;
+
+    // 거리가 원의 반지름보다 작으면 교차점생김
+    float radius = sphere.x_scale;
+    return (distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ) < (radius * radius);
+}
+
+GLvoid jump_ok(int value) {
 
     if (jump_check != 3) {
     if (main_character.jump_scale < 15 && jump_check == 0) {
@@ -683,23 +926,93 @@ GLvoid j_ok(int value) {
     }
     InitBuffer();
     glutPostRedisplay();
-    glutTimerFunc(30, j_ok, 1);
+    glutTimerFunc(30, jump_ok, 1);
     }
 }
 
-
-
 GLvoid object_ok(int value) {
 
-    if (objects.size() < 5) {
+    if (objects.size() < 10) {
         object_won new_object;
-        new_object.init(); // 객체 초기화
-
+        if (sever_level > 1) {
+            new_object.init(spherePosVbo, sphereNomalVbo); // 객체 초기화
+        }
+        else {
+            new_object.init(MainPosVbo2, MainNomalVbo2); // 객체 초기화
+        }
+        if (sever_level > 2) {
+            new_object.a = 0.1f;
+        }
+        else
+        {
+            new_object.a = 1.0f;
+        }
         objects.push_back(new_object);
-
 
         InitBuffer();
         glutPostRedisplay();
-        glutTimerFunc(480, object_ok, 1);
+
+        if (sever_level >0) {
+            glutTimerFunc(480, object_ok, 1);
+        }
     }
+}
+
+GLvoid snow_init(int value) {
+
+    for(int i = 0; i<200;i++){
+        snow new_object;
+        new_object.init(); // 객체 초기화
+        snows.push_back(new_object);
+    }
+    InitBuffer();
+    glutPostRedisplay();
+}
+
+GLvoid next_stage(int value) {
+    if (game_check) {
+
+        std::cout << sever_level << std::endl;
+        if (sever_level < 5) {
+            sever_level++;
+        }
+
+        if (sever_level == 1) {
+
+            objects.clear();
+            glutTimerFunc(900, object_ok, 1);
+        }
+        else if (sever_level == 2) {
+
+            objects.clear();
+            glutTimerFunc(900, object_ok, 1);
+        }
+        else if (sever_level == 3) {
+            objects.clear();
+            glutTimerFunc(900, object_ok, 1);
+        }
+        else if (sever_level == 4) {
+            light.cameraRotation = 0.0f;
+            light.camera_x = 0.0f;
+            light.camera_y = 2.0f;
+            jump_check = 3;
+            main_character.jump_scale = 0;
+            main_character.x = 0;
+            main_character.y = 0.25f;
+            main_character.z = -1.0f;
+            objects.clear();
+            glutTimerFunc(900, object_ok, 1);
+            snow_init(1);
+        }
+
+        glutTimerFunc(10000, next_stage, 1);
+        InitBuffer();
+        glutPostRedisplay();
+    }
+}
+
+GLvoid shoot() {
+    bullet new_object;
+    new_object.init(main_character.x, main_character.y, main_character.z); // 객체 초기화
+    bullets.push_back(new_object);
 }
