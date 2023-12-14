@@ -16,7 +16,7 @@
 #include <gl/glm/gtc/type_ptr.hpp>
 #include <math.h>
 #include <vector>
-
+#include <string>
 
 void make_shaderProgram();
 void make_vertexShaders();
@@ -38,5 +38,7 @@ GLvoid object_ok(int value);
 GLvoid snow_init(int value);
 GLvoid next_stage(int value);
 GLvoid update(int value);
+GLvoid shoot_ok(int value);
+
 
 #endif

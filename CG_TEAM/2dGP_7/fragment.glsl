@@ -7,9 +7,10 @@ uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform vec4 objectColor;
 uniform vec3 viewPos;
+uniform vec3 amb;
 
 void main() {
-    vec3 ambientLight = vec3(0.0); // Ambient light intensity
+    vec3 ambientLight = amb; // Ambient light intensity
     vec3 ambient = ambientLight * lightColor;
 
     vec3 normalVector = normalize(Normal);

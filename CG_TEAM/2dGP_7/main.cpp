@@ -10,14 +10,19 @@ GLuint shaderProgramID;
 GLuint WallPosVbo;
 GLuint WallNomalVbo;
 
-GLuint MainPosVbo2;
-GLuint MainNomalVbo2;
+GLuint cubePosVbo2;
+GLuint cubeNomalVbo2;
 
-GLuint spherePosVbo;
-GLuint sphereNomalVbo;
+GLuint RockPosVbo;
+GLuint RockNomalVbo;
 
 GLuint hpPosVbo;
 GLuint hpNomalVbo;
+
+
+GLuint teapotPosVbo;
+GLuint teapotNomalVbo;
+
 
 
 std::default_random_engine engine(std::random_device{}());
@@ -27,9 +32,12 @@ std::uniform_real_distribution<GLfloat> random_move(-0.1f, 0.1f);
 std::uniform_real_distribution<GLfloat> random_color(0.0f, 1.0f);
 std::uniform_real_distribution<double> random_rotate(-10.0f, 10.0f);
 
-std::uniform_real_distribution<double> random_snow_pos_z(-30.0f, 2.0f);
-std::uniform_real_distribution<double> random_snow_pos_x(-2.0f, 2.0f);
-std::uniform_real_distribution<double> random_snow_pos_y_move(-0.2f, -0.05f);
+std::uniform_real_distribution<GLfloat> random_snow_pos_z(-30.0f, 2.0f);
+std::uniform_real_distribution<GLfloat> random_snow_pos_x(-2.0f, 2.0f);
+std::uniform_real_distribution<GLfloat> random_snow_pos_y_move(-0.2f, -0.05f);
+
+std::uniform_real_distribution<double> random_model(1, 6);
+
 
 class obs {
 public:
@@ -38,6 +46,8 @@ public:
     GLfloat x_scale{2.0f}, y_scale{0.0001f}, z_scale{50.0f};
     objRead objReader;
     GLint Object = objReader.loadObj_normalize_center("cube.obj");
+
+
 };
 class obss {
 public:
@@ -45,16 +55,24 @@ public:
     GLfloat x_scale{ 0.25f }, y_scale{ 0.25f }, z_scale{ 0.25f };
 
     GLfloat r{ 1 }, g{ 0 }, b{ 0 }, a{ 1.0 };
-    objRead objReader;
     int jump_scale{};
-    int hp = 3;
-    GLint Object = objReader.loadObj_normalize_center("cube.obj");
+    int hp = 100;
+
+    GLuint vvbo{cubePosVbo2}, nvbo{cubeNomalVbo2};
+    GLint Object{};
 
     void change_color(float r, float g, float b) {
         this->r = r;
         this->g = g;
         this->b = b;
     }
+
+    void init(int PosVbo, int NomalVbo) {
+
+        this->vvbo = PosVbo;
+        this->nvbo = NomalVbo;
+    }
+
 };
 
 class object_won {
@@ -65,10 +83,11 @@ public:
     GLfloat r{}, g{}, b{}, a{ 1.0 };
     GLuint vvbo{}, nvbo{};
     GLfloat rotate{};
+    GLint object_num{};
     int rotate_move{};
 
 
-    void init(int PosVbo, int NomalVbo ) {
+    void init(int PosVbo, int NomalVbo) {
         this->z = -100.0f;
         this->x = 0.0f;
         this->y = 2.0f;
@@ -142,7 +161,7 @@ public:
 class bullet {
 public:
     GLfloat x{}, y{  }, z{  };
-    GLfloat scale{ 0.05 };
+    GLfloat scale{ 0.5f };
     GLfloat z_move{1.0f};
     GLuint vvbo{}, nvbo{};
 
@@ -152,8 +171,8 @@ public:
         this->x = x;
         this->y = y;
 
-        this->vvbo = MainPosVbo2;
-        this->nvbo = MainNomalVbo2;
+        this->vvbo = cubePosVbo2;
+        this->nvbo = cubeNomalVbo2;
     }
 
     void move() {
@@ -187,6 +206,7 @@ public:
     }
 
 };
+
 obs wall;
 obss main_character;
 
@@ -197,25 +217,29 @@ std::vector<snow> snows;
 objRead RockReader;
 GLint RockObject = RockReader.loadObj_normalize_center("rock.obj");
 
-
 objRead CubeReader;
 GLint CubeObject = CubeReader.loadObj_normalize_center("cube.obj");
 
 objRead snowReader;
 GLint snowObject = snowReader.loadObj_normalize_center("sphere.obj");
 
+objRead teapotReader;
+GLint teapotObject = teapotReader.loadObj_normalize_center("teapot.obj");
+
 GLfloat Color[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
 
 bool checkCollision2(object_won& sphere, bullet& wall);
 bool checkCollision(object_won& , obss& );
-int playerHP{};
+
+
 int move_check{};
 int jump_check = 3;
 int sever_level = 0;
 bool game_check = true;
 bool left_button = false;
+bool shoot_check = true;
 
-int hp{ 3 };
+int playerHP = 100;
 
 light_set light;
 
@@ -233,10 +257,13 @@ int main(int argc, char** argv)
     glewInit();
 
     make_shaderProgram();
+    
     InitBuffer();
     glutWarpPointer(800 / 2, 800 / 2);
     glutTimerFunc(1000, next_stage, 1);
     glutTimerFunc(60, update, 1);
+    glutTimerFunc(30, shoot_ok, 1);
+
     glutKeyboardFunc(keyboard);
     glutDisplayFunc(drawScene);
     glutReshapeFunc(Reshape);
@@ -251,7 +278,6 @@ int main(int argc, char** argv)
 
 void drawScene()
 {
-
     glClearColor(Color[0], Color[1], Color[2], Color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -270,6 +296,11 @@ void drawScene()
     glUniform3f(lightColorLocation, light.light_r, light.light_g, light.light_b);
     unsigned int lighton = glGetUniformLocation(shaderProgramID, "light");
     glUniform1i(lighton, 1);
+
+    unsigned int ambiont = glGetUniformLocation(shaderProgramID, "amb");
+
+    glUniform3f(ambiont, 0.0,0.0,0.0);
+
     int objColorLocation = glGetUniformLocation(shaderProgramID, "objectColor"); //--- object Color값 전달: (1.0, 0.5, 0.3)의 색
 
     int modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
@@ -291,8 +322,6 @@ void drawScene()
 
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &vTransform[0][0]);
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, &pTransform[0][0]);
-
-
 
     int viewPosLocation = glGetUniformLocation(shaderProgramID, "viewPos"); //--- viewPos 값 전달: 카메라 위치
     glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
@@ -368,15 +397,16 @@ void drawScene()
         // 모델 행렬을 셰이더에 전달
         modelMatrix = glm::translate(modelMatrix, glm::vec3(main_character.x, main_character.y, main_character.z)); // 이동
         modelMatrix = glm::scale(modelMatrix, glm::vec3(main_character.x_scale, main_character.y_scale, main_character.z_scale));
+        modelMatrix = glm::rotate(modelMatrix, glm::radians(light.cameraRotation), glm::vec3(0.0f, 0.0f, 1.0f)); // z축으로 회전
         glUniform4f(objColorLocation, main_character.r, main_character.g, main_character.b, 1.0);
 
         glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
 
-        glBindBuffer(GL_ARRAY_BUFFER, MainPosVbo2);
+        glBindBuffer(GL_ARRAY_BUFFER, main_character.vvbo);
         glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(PosLocation);
 
-        glBindBuffer(GL_ARRAY_BUFFER, MainNomalVbo2);
+        glBindBuffer(GL_ARRAY_BUFFER, main_character.nvbo);
         glVertexAttribPointer(NomalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
         glEnableVertexAttribArray(NomalLocation);
 
@@ -410,7 +440,7 @@ void drawScene()
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
-        glDrawArrays(GL_TRIANGLES, 0, RockObject);
+        glDrawArrays(GL_TRIANGLES, 0, objects[i].object_num);
 
         if (sever_level >2 ) {
             glDisable(GL_BLEND);
@@ -439,7 +469,7 @@ void drawScene()
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
-        glDrawArrays(GL_TRIANGLES, 0, RockObject);
+        glDrawArrays(GL_TRIANGLES, 0, CubeObject);
 
         if (sever_level > 2) {
             glDisable(GL_BLEND);
@@ -473,6 +503,8 @@ void drawScene()
     glDisableVertexAttribArray(PosLocation);
     glDisableVertexAttribArray(NomalLocation);
 
+
+
     glutSwapBuffers();
 }
 
@@ -494,20 +526,20 @@ void InitBuffer()
     glBindBuffer(GL_ARRAY_BUFFER, WallNomalVbo);
     glBufferData(GL_ARRAY_BUFFER, wall.objReader.outnormal.size() * sizeof(glm::vec3), &wall.objReader.outnormal[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &MainPosVbo2);
-    glBindBuffer(GL_ARRAY_BUFFER, MainPosVbo2);
-    glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outvertex.size() * sizeof(glm::vec3), &main_character.objReader.outvertex[0], GL_STATIC_DRAW);
+    glGenBuffers(1, &cubePosVbo2);
+    glBindBuffer(GL_ARRAY_BUFFER, cubePosVbo2);
+    glBufferData(GL_ARRAY_BUFFER,CubeReader.outvertex.size() * sizeof(glm::vec3), &CubeReader.outvertex[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &MainNomalVbo2);
-    glBindBuffer(GL_ARRAY_BUFFER, MainNomalVbo2);
-    glBufferData(GL_ARRAY_BUFFER, main_character.objReader.outnormal.size() * sizeof(glm::vec3), &main_character.objReader.outnormal[0], GL_STATIC_DRAW);
+    glGenBuffers(1, &cubeNomalVbo2);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeNomalVbo2);
+    glBufferData(GL_ARRAY_BUFFER, CubeReader.outnormal.size() * sizeof(glm::vec3), &CubeReader.outnormal[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &spherePosVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, spherePosVbo);
+    glGenBuffers(1, &RockPosVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, RockPosVbo);
     glBufferData(GL_ARRAY_BUFFER, RockReader.outvertex.size() * sizeof(glm::vec3), &RockReader.outvertex[0], GL_STATIC_DRAW);
 
-    glGenBuffers(1, &sphereNomalVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, sphereNomalVbo);
+    glGenBuffers(1, &RockNomalVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, RockNomalVbo);
     glBufferData(GL_ARRAY_BUFFER, RockReader.outnormal.size() * sizeof(glm::vec3), &RockReader.outnormal[0], GL_STATIC_DRAW);
 
 
@@ -518,6 +550,14 @@ void InitBuffer()
     glGenBuffers(1, &hpNomalVbo);
     glBindBuffer(GL_ARRAY_BUFFER, hpNomalVbo);
     glBufferData(GL_ARRAY_BUFFER, snowReader.outnormal.size() * sizeof(glm::vec3), &snowReader.outnormal[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &teapotPosVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, teapotPosVbo);
+    glBufferData(GL_ARRAY_BUFFER, teapotReader.outvertex.size() * sizeof(glm::vec3), &teapotReader.outvertex[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &teapotNomalVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, teapotNomalVbo);
+    glBufferData(GL_ARRAY_BUFFER, teapotReader.outnormal.size() * sizeof(glm::vec3), &teapotReader.outnormal[0], GL_STATIC_DRAW);
 
 }
 
@@ -601,10 +641,14 @@ GLvoid update(int value) {
             // 충돌 발생 시 구를 숨깁니다.
             objects[i].z = -200.0f; // 구의 위치를 화면 밖으로 이동
             main_character.hp -= 1;
+            main_character.init(objects[i].vvbo, objects[i].nvbo);
+            main_character.Object = objects[i].object_num;
+
             if (main_character.hp <= 0)
             {
                 objects.clear();
                 snows.clear();
+                bullets.clear();
                 sever_level = 0;
                 game_check = false;
             }
@@ -612,7 +656,6 @@ GLvoid update(int value) {
             {
                 main_character.change_color(objects[i].r, objects[i].g, objects[i].b);
             }
-            std::cout << playerHP << std::endl;
         }
     }
 
@@ -627,17 +670,17 @@ GLvoid update(int value) {
                     bullets.pop_back();
 
                     if (sever_level > 1) {
-                        objects[k].init(spherePosVbo, sphereNomalVbo); // 객체 초기화
+                        objects[k].init(RockPosVbo, RockNomalVbo); // 객체 초기화
                     }
                     else {
-                        objects[k].init(MainPosVbo2, MainNomalVbo2); // 객체 초기화
+                        objects[k].init(cubePosVbo2, cubeNomalVbo2); // 객체 초기화
                     }
                     break;
                 }
             }
         }
         else {
-            if (bullets[i].z < -200) {
+            if (bullets[i].z < -100) {
                 std::swap(bullets[i], bullets.back());
                 bullets.pop_back();
             }
@@ -704,7 +747,11 @@ GLvoid handleEvent(unsigned char key, bool state)
             jump();
             break;
         case 'c':
-            shoot();
+            if (shoot_check)
+            {
+                shoot_check = false;
+                shoot();
+            }
             break;
         case '2':
             if (sever_level != 2) {
@@ -935,10 +982,29 @@ GLvoid object_ok(int value) {
     if (objects.size() < 10) {
         object_won new_object;
         if (sever_level > 1) {
-            new_object.init(spherePosVbo, sphereNomalVbo); // 객체 초기화
+            int model = random_model(engine);
+            if (model == 1) {
+                new_object.init(RockPosVbo, RockNomalVbo); // 객체 초기화
+                new_object.object_num = RockObject;
+            }
+            else if (model == 2)
+            {
+                new_object.init(cubePosVbo2, cubeNomalVbo2); // 객체 초기화
+                new_object.object_num = CubeObject;
+            }
+            else if( model == 3)
+            {
+                new_object.init(hpPosVbo, hpNomalVbo); // 객체 초기화
+                new_object.object_num = snowObject;
+            }
+            else
+            {
+                new_object.init(teapotPosVbo, teapotNomalVbo); // 객체 초기화
+                new_object.object_num = teapotObject;
+            }
         }
         else {
-            new_object.init(MainPosVbo2, MainNomalVbo2); // 객체 초기화
+            new_object.init(cubePosVbo2, cubeNomalVbo2); // 객체 초기화
         }
         if (sever_level > 2) {
             new_object.a = 0.1f;
@@ -971,6 +1037,9 @@ GLvoid snow_init(int value) {
 
 GLvoid next_stage(int value) {
     if (game_check) {
+
+        main_character.vvbo = cubePosVbo2;
+        main_character.nvbo = cubeNomalVbo2;
 
         std::cout << sever_level << std::endl;
         if (sever_level < 5) {
@@ -1015,4 +1084,17 @@ GLvoid shoot() {
     bullet new_object;
     new_object.init(main_character.x, main_character.y, main_character.z); // 객체 초기화
     bullets.push_back(new_object);
+}
+
+GLvoid shoot_ok(int value) {
+    if (!shoot_check)
+    {
+        shoot_check = true;
+    }
+
+    InitBuffer();
+    glutPostRedisplay();
+
+    glutTimerFunc(3000, shoot_ok, 1);
+
 }
