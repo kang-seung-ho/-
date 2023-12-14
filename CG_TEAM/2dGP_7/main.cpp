@@ -1176,6 +1176,6 @@ GLvoid shoot_ok(int value) {
     InitBuffer();
     glutPostRedisplay();
 
-    glutTimerFunc(100, shoot_ok, 1);
+    glutTimerFunc(3000, shoot_ok, 1);
 
 }
